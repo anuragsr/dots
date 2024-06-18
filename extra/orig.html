@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Beautiful Line Effects with Color Changes</title>
+	<style type="text/css">
+		html, body {
+			height:100%;
+			width:100%;
+		  	background: #000;
+		  	margin: 0;
+		}
+
+		body{
+			background:url(badtest.jpg);
+			background-size:100% 100%;
+		}
+
+		canvas {
+		  	position: absolute;
+		}
+
+		#canvas2{
+			opacity: 0;
+		}
+
+	</style>
+</head>
+<body>
+	<canvas id="canvas1"></canvas>
+	<canvas id="canvas2"></canvas>
+	<script src="jquery-1.9.1.min.js"></script>
+	<script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/latest/TweenMax.min.js"></script>
+	<script type="text/javascript">
+		var linesArray = [];
+		var amount = {value:0};
+		var animlevel = 1;
+		var	blastDots = false;
+		var	animating = false;
+		var opArr = [1, 0.85, 0.7, 0.6, 0.45, 0.3];
+		var blastOp = {value:1};
+		//var retainId = "";
+		var retainArr = [];
+		var dots = [{
+			level:1,
+			nb: 30,
+			radius: 4.5,
+			//radius: 25,
+			array: []
+		}
+		,{
+			level:2,
+			nb: 60,
+			radius: 3.5,
+			//radius: 17,
+			array: []
+		}
+		,{
+			level:3,
+			nb: 90,
+			radius: 2.5,
+			//radius: 12.5,
+			array: []
+		}
+		,{
+			level:4,
+			nb: 120,
+			radius: 1.5,
+			//radius: 10,
+			array: []
+		}
+		,{
+			level:5,
+			nb: 150,
+			radius: 0.8,
+			//radius: 7,
+			array: []
+		}
+
+					
+		,{
+			level:6,
+			nb: 200,
+			radius: 0.4,
+			//radius: 3,
+			array: []
+		}			
+		,{
+			level:7,
+			nb: 350,
+			radius: 0.1,
+			//radius: 3,
+			array: []
+		}/*			
+		,{
+			level:8,
+			nb:400,
+			radius: 0.1,
+			//radius: 3,
+			array: []
+		}*/];	
+		Array.prototype.getClosestN = function( n ){
+			var arr = this.sortOn("dist");
+			var dotsToChoose = arr.filter(function(x){ return !x.inserted}).slice(0, n);
+			for(i = 0; i < dotsToChoose.length; i++){
+				dotsToChoose[i].inserted = true;
+			}
+			console.log(dotsToChoose.length)
+			return dotsToChoose;
+		};
+
+		Array.prototype.sortOn = function(key){
+		    this.sort(function(a, b){
+		        if(a[key] < b[key]){
+		            return -1;
+		        }else if(a[key] > b[key]){
+		            return 1;
+		        }
+		        return 0;
+		    });
+		    return this;
+		}
+
+		//CANVAS
+		$(function(){
+			var mouseover = false;
+			var canvas = document.getElementById('canvas1'),
+			ctx = canvas.getContext('2d');
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight;
+			ctx.lineWidth = .3;
+			ctx.strokeStyle = (new Color(150)).style;
+
+			var mousePosition = {
+				x: 30 * canvas.width / 100,
+				y: 30 * canvas.height / 100
+			};				
+
+			function createColorStyle(r,g,b) {
+				return 'rgba(' + r + ',' + g + ',' + b + ', 1)';
+			}
+
+			function Color(min) {
+				min = min || 0;
+				this.r = 255;
+				this.g = 255;
+				this.b = 255;
+				this.style = createColorStyle(this.r, this.g, this.b);
+			}
+
+			function Dot(radius, level){
+				this.level = level;
+				this.inserted = false;
+				this.x = Math.random() * canvas.width;
+				this.y = Math.random() * canvas.height;
+
+				this.vx = -.5 + Math.random();
+				this.vy = -.5 + Math.random();
+
+				this.radius = radius;
+
+				this.color = new Color();
+				//console.log(this);
+			}
+
+			Dot.prototype = {
+				draw: function(){
+				  	ctx.beginPath();
+			  		var radius, colorStop = "rgba(255,255,255,1)";
+				  	if(mouseover && blastDots){
+				  		if(this.toBlast){					  			
+				  			//for the blast dot
+				  	// 		var grd = ctx.createRadialGradient(this.x, this.y, 0.1, this.x, this.y, this.radius*2);
+							// grd.addColorStop(0,colorStop);
+							// grd.addColorStop(1,"rgba(0, 0, 0, 0)");
+					  // 		ctx.fillStyle = grd;			 
+					  // 		ctx.arc(this.x, this.y, 20*this.radius, 0, Math.PI * 2, false);
+				  			
+					   		ctx.fillStyle = "rgba(0, 255 , 0, "+blastOp.value+")";
+							ctx.save(); // saves the coordinate system
+							ctx.translate(this.x + 32, this.y - 32); // now the position (0,0) is found at said point
+							ctx.rotate(rotAngle); // rotate around the start point of your line
+							ctx.strokeStyle = 'rgba(255,255,255,' +blastOp.value+ ')';
+							ctx.lineCap = 'round';
+							ctx.lineWidth = 3;
+							ctx.moveTo(12,-7)
+							ctx.lineTo(0,30)
+							ctx.lineTo(-12,-7) 
+							ctx.lineTo(0, 0)
+							ctx.lineTo(12, -7)
+							ctx.stroke();
+							ctx.restore(); // restores the coordinate system back to (0,0)
+				  		}else{
+					  		ctx.fillStyle = this.color.style;
+			  				ctx.arc(this.x, this.y, this.radius*2/3, 0, Math.PI * 2, false);			  				
+					  	}
+				  	}else{				  		
+			  			ctx.fillStyle = this.color.style;
+			  			ctx.arc(this.x, this.y, this.radius*2/3, 0, Math.PI * 2, false);
+				  	}
+				  	ctx.fill();
+					ctx.closePath();
+				}
+			};
+
+			function Node(value) {
+			    this.value = value;
+			    this.children = [];
+			    this.parent = null;
+
+			    this.setParentNode = function(node) {
+			        this.parent = node;
+			    }
+
+			    this.getParentNode = function() {
+			        return this.parent;
+			    }
+
+			    this.addChild = function(node) {
+			        node.setParentNode(this);
+			        this.children[this.children.length] = node;
+			    }
+
+			    this.getChildren = function() {
+			        return this.children;
+			    }
+
+			    this.removeChildren = function() {
+			        this.children = [];
+			    }
+			}		
+
+			function createDots(){
+				for(j = 0; j < dots.length; j++){
+					var dot = dots[j];
+					for(i = 0; i < dot.nb; i++){
+					  	dot.array.push(new Dot(dot.radius, dot.level));
+					}
+				}
+				origDots = dots.slice();			
+			}
+			
+			function moveDots() {
+				for(j = 0; j < dots.length; j++){
+					var dot = dots[j];
+					for(i = 0; i < dot.nb; i++){
+					  	var newdot = dot.array[i];
+		
+					  	if(newdot.y < 0 || newdot.y > canvas.height){
+					  	  newdot.vx = newdot.vx;
+					  	  newdot.vy = - newdot.vy;
+					  	}
+					  	else if(newdot.x < 0 || newdot.x > canvas.width){
+					  	  newdot.vx = - newdot.vx;
+					  	  newdot.vy = newdot.vy;
+					  	}
+
+					  	// if(blastDots){
+					  	// 	newdot.x += 3*newdot.vx;
+						  // 	newdot.y += 3*newdot.vy;
+					  	// }
+					  	// else{					  		
+					  	// }
+					  	newdot.x += newdot.vx;
+					  	newdot.y += newdot.vy;
+					}
+				}
+			}
+
+			function connectDots(parent) {
+				if(parent.length > 0){					
+					for(var j = 0; j < parent.length; j++){						
+						children = parent[j].getChildren(); 
+						for(var i = 0; i < children.length; i++){
+							var tempParent = parent[j].value;							
+							
+							var startX = tempParent.x;
+							var startY = tempParent.y;
+							var endX = children[i].value.x;
+							var endY = children[i].value.y;
+							linesArray.push({
+								level : tempParent.level,
+								from : {x: startX, y: startY, id: tempParent.id},
+								to : {x: endX, y: endY, id: children[i].value.id}
+							});
+						}
+						//animLines(parent[j].children);						
+						connectDots(parent[j].children);
+					}
+				}else{				
+					return;
+				}
+			}
+
+			function animLines(array){
+				//console.log(array);
+			}
+
+			function drawDots() {
+				for(j = 0; j < dots.length; j++){
+					var dot = dots[j];
+					for(i = 0; i < dot.nb; i++){
+					  	var newdot = dot.array[i];
+					  	newdot.draw();
+					}
+				}
+			}
+
+			function getDistance(p1, p2){
+				return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+			}
+
+			function getRandomBetween(min, max){
+				return Math.floor(Math.random()*(max-min+1)+min);
+			}
+
+			function resetPoints(){
+				linesArray = [];
+				retainArr = [];
+				amount.value = 0;	
+				animlevel = 1;			
+				delete root;	
+				if(typeof tl !== "undefined"){
+					tl.seek(0).pause();
+					delete tl;
+				}	
+				if(typeof blastTl !== "undefined"){
+					blastTl.seek(0).pause();
+					delete blastTl;
+				}
+				
+				blastDots = false;
+				dots[dots.length - 1].array.filter(function(x){ x.radius > 0.1?x.radius = 0.1:x.radius=0.1; return x; })
+				opArr = [1, 0.85, 0.7, 0.6, 0.45, 0.3];
+				blastOp.value = 1;
+
+				for(i =0; i < dots.length; i++){
+					var dotArr = dots[i].array;
+					var origDotArr = origDots[i].array;
+					for(j =0; j < dotArr.length; j++){
+						dotArr[j].color.style = "rgb(255,255,255)";
+						dotArr[j].inserted = false;
+						dotArr[j].toBlast = false;
+					}
+				}
+			}
+
+			function getTree(refPtArr, lvl, nodeArr){
+				var pointArr = dots[lvl-1], nearest;
+				if(typeof pointArr !== "undefined"){
+					pointArr = pointArr.array;
+
+					for(var h = 0; h < nodeArr.length; h++){
+						currNode = nodeArr[h];
+						for(var j = 0; j < refPtArr.length; j++){	
+							var refPt = refPtArr[j];
+							for(var i = 0; i < pointArr.length; i++){
+								var currDot = pointArr[i];
+								currDot.dist = getDistance(refPt, currDot);						
+							}
+						}
+						if(lvl == 1 || lvl == 2){
+							nearest = pointArr.getClosestN(1);
+						}else{
+							nearest = pointArr.getClosestN(getRandomBetween(2, 5));
+						}
+						for(var i = 0; i < nearest.length; i++){
+							nearest[i].id = "l_" + getRandomBetween(0, 25000);					
+							currNode.addChild(new Node(nearest[i]))
+						}						
+						getTree(nearest, lvl + 1, currNode.getChildren())
+					}
+				}else{
+					//console.log("Tree Made")
+					return;
+				}
+			}
+
+			function animateDots() {
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				moveDots();
+				drawDots();
+				if(typeof root !== "undefined"){
+					linesArray = [];
+					origLinesArray = linesArray;
+					connectDots(root.children);					
+					drawLines(linesArray.filter(function(x){ return x.level < animlevel}));					
+					animateLines(linesArray.filter(function(x){ return x.level == animlevel}));						
+				}
+				requestAnimationFrame(animateDots);	
+			}
+
+			function getStrokeStyle(lvl) {
+				switch(lvl){
+					case 1:
+						if(animlevel >= 4)
+							return fadeLineStroke(lvl - 1, 0.01/1.5);
+						else
+							return "rgba(255, 255 , 255, 1)";
+
+					case 2:
+						if(animlevel >= 4)
+							return fadeLineStroke(lvl - 1, 0.02/1.5);
+						else
+							return "rgba(255, 255 , 255, 0.85)";
+
+					case 3:
+						if(animlevel >= 4)
+							return fadeLineStroke(lvl - 1, 0.005/1.5);
+						else
+							return "rgba(255, 255 , 255, 0.7)";
+
+					case 4:
+						if(animlevel > 5)
+							return fadeLineStroke(lvl - 1, 0.001/1.5);
+						else
+							return "rgba(255, 255 , 255, 0.6)";
+
+					case 5:
+						if(animlevel > 5){
+							return fadeLineStroke(lvl - 1, 0.0002/1.5);
+						}
+						else
+							return "rgba(255, 255 , 255, 0.45)";
+					
+					case 6:
+						if(animlevel > 6){
+							return fadeLineStroke(lvl - 1, 0.00001/1.5);
+						}
+						else
+							return "rgba(255, 255 , 255, 0.3)";
+
+					// case 7:
+					// 	if(animlevel > 7){
+					// 		return fadeLineStroke(lvl - 1, 0.00001);
+					// 	}
+					// 	else
+					// 		return "rgba(255, 255 , 255, 0.3)";
+				}
+			}
+
+			function fadeLineStroke(idx, amount) {
+				if(typeof opArr !== "undefined"){					
+					if(opArr[idx] > 0){
+						opArr[idx]-= amount
+					}else{
+						opArr[idx] = 0					
+					}
+					return "rgba(255, 255, 255, "+opArr[idx]+")";
+				}
+			}
+
+			function drawLines(linesArray) {
+				for(var i = 0; i < linesArray.length; i++){
+					ctx.beginPath();		
+					if(retainArr.indexOf(linesArray[i].to.id) > -1){
+						ctx.strokeStyle = "rgba(255, 255, 255, "+ blastOp.value +")";
+					}else{
+						ctx.strokeStyle = getStrokeStyle(linesArray[i].level);
+					}
+				    ctx.moveTo(linesArray[i].from.x, linesArray[i].from.y);
+				    ctx.lineTo(linesArray[i].to.x, linesArray[i].to.y);
+				    ctx.stroke();
+				}	
+			}
+
+			function animateLines(linesArray) {
+				for(var i = 0; i < linesArray.length; i++){
+					var	point = linesArray[i];
+					var startX = point.from.x;
+					var startY = point.from.y;
+					var endX = point.to.x;
+					var endY = point.to.y;
+
+					ctx.beginPath();							
+					if(retainArr.indexOf(linesArray[i].to.id) > -1){
+						ctx.strokeStyle = "rgba(255, 255, 255, "+ blastOp.value +")";
+					}else{
+						ctx.strokeStyle = getStrokeStyle(point.level);
+					}
+				    ctx.moveTo(startX, startY);
+				    ctx.lineTo(startX + (endX - startX) * amount.value, startY + (endY - startY) * amount.value);
+				    ctx.stroke();
+				}	
+
+			}	
+
+			function blastDot() {
+				//console.log("Blast points!")
+				var blastDot = dots[5].array.filter(function(x){return x.inserted})[0];
+				var origDot = origDots[5].array.filter(function(x){return x.inserted})[0];
+				if(typeof blastDot !== "undefined"){					
+					blastDot.toBlast = true;
+					blastDot.rotAngle = rotAngle;
+					// for blast dot
+					// if(blastDot.radius > 15){
+					// 	blastDot.radius = 15;
+					// }else{
+					// 	blastDot.radius += 0.005;
+					// 	blastOp -= 0.0001;
+					// 	if(blastOp < 0){
+					// 		blastOp = 0;
+					// 		animating = false;
+					// 		blastDots = false;
+					// 		resetPoints();
+					// 	}
+					// }
+					// if(blastDot.radius > 15){
+					// 	blastDot.radius = 15;
+					// }else{
+					blastOp -= 0.0001;
+					//blastDot.radius += 0.005;
+					if(blastOp < 0){
+						blastOp = 0;
+						animating = false;
+						blastDots = false;
+						resetPoints();
+					}
+					// }
+				}
+				return "rgba(0, 255 , 0, "+blastOp+")";
+			}
+
+			function getBlastDot(){
+				node = root;
+				while(node.children.length > 0){
+					node = node.children[getRandomBetween(0, node.children.length -1)];
+					retainArr.push(node.value.id);
+				}
+				//retainId = node.value.id;
+				node.value.toBlast = true;
+			}
+
+			function findNearest(refPt){
+				if(!animating){
+					animating = true;
+					rotAngle = 0.8;
+					TweenLite.defaultEase = Linear.easeNone;			
+					tl = new TimelineMax({
+						onComplete:function(){
+							// blastDots = true;
+							// blastTl = new TimelineMax({
+							// 	onComplete:function(){
+							// 		animating = false;
+							// 		blastDots = false;
+							// 		resetPoints();
+							// 	}
+							// });
+							// blastTl.fromTo(blastOp, 3, {value:1}, {
+							// 	value:0	
+							// })
+						}
+					});
+
+					for(var i = 0; i < dots.length; i++){						
+						tl.fromTo(amount, 3/dots.length, {
+							value:0
+						},{
+							value:1, 
+							onUpdate:function(){
+								//console.log(animlevel)
+							},
+							onComplete:function(){
+								if(animlevel == dots.length - 1){
+									blastDots = true;
+									blastTl = new TimelineMax({
+										delay:0.5,
+										onStart:function(){
+										},
+										onComplete:function(){
+											animating = false;
+											blastDots = false;
+											resetPoints();
+										}
+									});
+									blastTl.fromTo(blastOp, 3, {value:1}, {
+										value:0	
+									})
+								}
+								animlevel++;							
+							}
+						})
+					}	
+					root = new Node(refPt);
+					getTree([refPt], 1, [root]);
+					getBlastDot();
+				}
+			}
+
+			var canvas2 = document.getElementById('canvas2');
+			ctx2 = canvas2.getContext('2d');
+			canvas2.width = window.innerWidth;
+			canvas2.height = window.innerHeight;
+			
+			function drawSearchLight(x, y){
+				var radius = canvas2.height/2;
+				//ctx2.globalCompositeOperation = "source-over";
+				ctx2.clearRect(0,0,canvas2.width, canvas2.height);
+				ctx2.fillStyle = 'rgba(0, 0, 0, 0.5)';
+				ctx2.fillRect(0,0,canvas2.width, canvas2.height);
+				ctx2.beginPath();				
+				ctx2.globalCompositeOperation = "destination-out";
+				//ctx2.fillStyle = 'rgba(255,0,0,1)';
+	  			ctx2.arc(x, y, radius, 0, Math.PI * 2, false);
+	  			ctx2.fill();
+				ctx2.globalCompositeOperation = "source-over";
+				//ctx2.fillStyle = 'rgba(255,255,255,0.7)';
+				var grd = ctx2.createRadialGradient(x, y, 0, x, y, radius);
+				grd.addColorStop(0,"rgba(0, 0, 0, 0)");
+				grd.addColorStop(1,"rgba(0, 0, 0, 0.5)");
+		  		ctx2.arc(x, y, 10*radius, 0, Math.PI * 2, false);
+		  		ctx2.fillStyle = grd;
+	  			ctx2.arc(x, y, radius, 0, Math.PI * 2, false);
+	  			ctx2.fill();
+				ctx2.closePath();				
+			}
+
+			$('#canvas2').on('mousemove', function(e){
+				mousePosition.x = e.pageX;
+				mousePosition.y = e.pageY;
+				//drawSearchLight(e.pageX, e.pageY)
+				findNearest(mousePosition)
+			});
+			$('#canvas2').on('mouseenter', function(e){
+				mouseover = true;
+				// TweenMax.to(this, 0.5, {opacity:1});
+			});
+			$('#canvas2').on('mouseleave', function(e){
+				TweenMax.to(this, 0.5, {opacity:0});
+				resetPoints();
+
+				animating = false;
+				mouseover = false;
+				blastDots = false;
+				amount.value = 0;
+				blastOp.value = 1;
+
+				mousePosition.x = canvas.width / 2;
+				mousePosition.y = canvas.height / 2;
+			});
+
+			createDots();
+			animateDots();
+			//drawSearchLight(300, 300);
+		});
+	</script>
+</body>
+</html>
+<!-- 
+/*levels = [{
+	color : "rgba(255, 255, 255, 1)",
+	//np : 1
+},{
+	color : "rgba(255, 255, 255, 0.85)",
+	//np : 1
+},{
+	color : "rgba(255, 255, 255, 0.7)",
+	//np : getRandomBetween(2, 5)
+},{
+	color : "rgba(255, 255, 255, 0.6)",
+	//np : getRandomBetween(2, 5)
+},{
+	color : "rgba(255, 255, 255, 0.45)",
+	//np : getRandomBetween(2, 5)
+}]*/
+
+//nearest[i].inserted = true;						
+/*switch(lvl){
+	case 1 :
+		nearest[i].color.style = "rgb(255, 0, 0)";
+	break;
+
+	case 2 :
+		nearest[i].color.style = "rgb(0, 0, 255)";
+	break;
+
+	case 3 :
+		nearest[i].color.style = "rgb(0, 255, 0)";
+	break;
+
+	case 4 :
+		nearest[i].color.style = "rgb(155, 127, 21)";
+	break;
+
+	case 5 :
+		nearest[i].color.style = "rgb(255, 120, 0)";
+	break;
+
+	case 6 :
+		nearest[i].color.style = "rgb(5, 120, 230)";
+	break;
+}	*/	
+
+// if(lvl > 1){
+// 	linesArray.push({
+// 		from:  {x: currNode.value.x, y: currNode.value.y}, 
+// 		to:  {x: nearest[i].x, y: nearest[i].y} 
+// 	})
+// }
+
+the glow level only happens on mouseover - the center of the mouse is transparent and it is a gradient that goes to 40% black on the outside of the gradient
+The connection level starts with a 100% white connection, the connection travels from the top level to the second level in one line only. That line is 100% white
+when the line hits the dot at the second level, it splits into 2-5 lines, those lines travel to the third level, those lines are 85% white
+when the line hits the dot on the third level, it again splits into 2-5 lines, those lines travel to the 4th level, those lines are 70% white
+when the line hits the dot on the fourth level, it again splits into 2-5 lines, those lines travel to the 5th level, those lines are 60% white
+when the line hits the dot on the fifth level, it again splits into 2-5 lines, those lines travel to the last level, those lines are 45% white
+when all the lines hit the 6th level, only one of those dots 'explodes' in a burst that expands to the size shown in the diagram. If the largest dot (the top layer) is 12px, this explosion is 30 px. before full expansion stops on the dot, it fades out
+Each of the lines fade out as soon as the fourth level of lines appear, so when the line from the first level to the second level is created, it fades to 0% when the lines from the 4th to the 5th level appear.
+the last level of lines fade out just before the burst at the end
+the glow affects all layers
+so it's a field of stars when no mouseover
+when there is a mouseover, the glow happens
+and also, randomly, a few different search lines start
+I think maybe 2 or three at a time
+or maybe just one at a time every second or so
+and on mobile I will just need it to automatically create lines constantly
+that can be a thing, yes
+
+black and white
+able to be transparent
+six layers
+layers delineated by color of line between the layers and size of node (shades of grey)
+largest node layer on top, brightest layer on top
+smallest, dimmest, flickering node layer on the bottom
+the line splits 40% of the time (approximately twice per action)
+the lines between nodes get dimmer every layer (will provide hex codes)
+the lines between nodes are blurrier every layer
+minor glow for the last node the line connects to (like a little explosion)
+glow is blurry and dim based on the layer
+ OK, so just adjustments I think
+it looks like it's going only 4 layers
+how come not 5
+also, it's running very slowly
+need to fix that
+also, if you move the mouse I don't want the previous "search" to disappear
+you have all of the lines moving so the longest connection creates the speed for all the lines
+I was hoping to get the speed uniform instead, is that possible?
+it looks like the third connector disappears out of order
+and the second connector disappears before the first
+-->

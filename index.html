@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Beautiful Line Effects with Color Changes</title>
+  	<!-- <meta name="viewport" content="width=device-width, initial-scale=1"> -->
+	<style type="text/css">
+		html, body {
+			font-family: Monospace;
+			color: #fff;
+			height:100%;
+			width:100%;
+			margin: 0;
+		}
+
+		canvas {
+		  	position: absolute;
+		  	//background: #000;
+		  	top:0;
+		  	left:0;
+			height:100%;
+			width:100%;
+		}
+
+		.bg{
+			position: absolute;
+			top: 0;
+			left:0;
+			height: 100%;
+			width: 100%;
+			background:url(neon.jpg);
+			background-size:cover;
+			z-index: -1;
+		}
+		
+		#instruction{
+			position: absolute;
+			bottom: 5rem;
+			left: 0;
+			width: 100%;
+			text-align: center;
+			font-size: 2rem;
+			font-weight: bold;
+			padding: 2rem;
+			box-sizing: border-box;
+		}
+	</style>
+</head>
+<body>
+	<canvas id="canvas1"></canvas>
+	<div class="bg"></div>
+	<div id="instruction">
+		Mousemove for network node connection animations.
+	</div>
+	<script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/latest/TweenMax.min.js"></script>
+	<script type="text/javascript">
+
+		var blastArr = [];
+		var animArr = [];
+		var	blastDots = false;
+		var	animating = false;
+		var blastRadius = {value: 0.1};
+		var fadeOp = {value:1};
+
+		var dots = [{
+			level:1,
+			nb: 120/2 * 10 * 6/5,
+			radius: 0.5,
+			array: []
+		},{
+			level:2,
+			nb: 60/2 * 10 * 6/5,
+			radius: 0.5,
+			array: []
+		},{
+			level:3,
+			nb: 90/2 * 10 * 6/5,
+			radius: 0.5,
+			array: []
+		},{
+			level:4,
+			nb: 120/2 * 10 * 6/5,
+			radius: 0.5,
+			array: []
+		}];	
+
+		Array.prototype.getClosestN = function( n ){
+			var dotsToChoose = this.sortOn("dist").slice(0, n);
+			if(dotsToChoose.length != 0){				
+				return dotsToChoose;
+			}
+		}
+
+		Array.prototype.sortOn = function(key){
+		    this.sort(function(a, b){
+		        if(a[key] < b[key]){
+		            return -1;
+		        }else if(a[key] > b[key]){
+		            return 1;
+		        }
+		        return 0;
+		    });
+		    return this;
+		}
+
+		//CANVAS
+		$(function(){
+			TweenLite.defaultEase = Linear.easeNone;		
+
+			var canvas = document.getElementById('canvas1'),
+			ctx = canvas.getContext('2d');
+			ctx.translate(0.5, 0.5);
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight;
+			ctx.lineWidth = .3;
+			ctx.strokeStyle = (new Color(150)).style;
+			ctx.imageSmoothingEnabled = true;
+ 
+			var mousePosition = {
+				x: 30 * canvas.width / 100,
+				y: 30 * canvas.height / 100
+			};				
+
+			function createColorStyle(r,g,b) {
+				return 'rgba(' + r + ',' + g + ',' + b + ', 1)';
+			}
+
+			function Color(min) {
+				min = min || 0;
+				this.r = 255;
+				this.g = 255;
+				this.b = 255;
+				this.style = createColorStyle(this.r, this.g, this.b);
+			}
+
+			function Dot(radius, level){
+				this.level = level;
+				this.inserted = false;
+				this.x = Math.random() * canvas.width;
+				this.y = Math.random() * canvas.height;
+
+				this.vx = -.5 + Math.random();
+				this.vy = -.5 + Math.random();
+
+				this.radius = radius;
+
+				this.color = new Color();
+				//console.log(this);
+			}
+
+			Dot.prototype = {
+				draw: function(){
+				  	ctx.beginPath();
+	  				ctx.fillStyle = this.color.style;
+		  			ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+				  	ctx.fill();
+					ctx.closePath();
+				},
+				blast: function(){	
+					ctx.beginPath();
+					var dur = 0.2;
+					if(isMobile()){
+						dur/=3;
+					}
+					TweenMax.to(this, dur, {
+		  				radius:3
+			  		})
+	  				ctx.fillStyle = this.color.style;
+		  			ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+				  	ctx.fill();
+					ctx.closePath();
+				},
+				fade: function(){	
+					ctx.beginPath();
+					var dur = 1.65;
+					if(isMobile()){
+						dur/=3;
+					}
+					TweenMax.to(this.fadeObj, dur, {
+		  				value:0,
+		  				onComplete:function(){
+				  			this.target.radius = 0.5;
+				  			this.target.fadeObj = {};
+	  						this.target.toFade = false;
+			  			}
+			  		})
+	  				ctx.fillStyle = "rgba(255, 255, 255, " + this.fadeObj.value + ")";
+		  			ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+				  	ctx.fill();
+					ctx.closePath();
+				}
+			};
+
+			function Node(value) {
+			    this.value = value;
+			    this.children = [];
+			    this.parent = null;
+
+			    this.setParentNode = function(node) {
+			        this.parent = node;
+			    }
+
+			    this.getParentNode = function() {
+			        return this.parent;
+			    }
+
+			    this.addChild = function(node) {
+			        node.setParentNode(this);
+			        this.children[this.children.length] = node;
+			    }
+
+			    this.getChildren = function() {
+			        return this.children;
+			    }
+
+			    this.removeChildren = function() {
+			        this.children = [];
+			    }
+			}		
+
+			function createDots(){
+				for(j = 0; j < dots.length; j++){
+					var dot = dots[j];
+					for(i = 0; i < dot.nb; i++){
+					  	dot.array.push(new Dot(dot.radius, dot.level));
+					}
+				}
+			}
+			
+			function moveDots() {
+				for(j = 0; j < dots.length; j++){
+					var dot = dots[j];
+					for(i = 0; i < dot.nb; i++){
+					  	var newdot = dot.array[i];
+		
+					  	if(newdot.y < 0 || newdot.y > canvas.height){
+					  	  newdot.vx = newdot.vx;
+					  	  newdot.vy = - newdot.vy;
+					  	}
+					  	else if(newdot.x < 0 || newdot.x > canvas.width){
+					  	  newdot.vx = - newdot.vx;
+					  	  newdot.vy = newdot.vy;
+					  	}
+					  	newdot.x += newdot.vx;
+					  	newdot.y += newdot.vy;
+					}
+				}
+			}
+
+			function connectDots(parent, result) {
+				if(parent.length > 0){					
+					for(var j = 0; j < parent.length; j++){						
+						children = parent[j].getChildren(); 
+						for(var i = 0; i < children.length; i++){
+							var tempParent = parent[j].value;							
+							
+							var startX = tempParent.x;
+							var startY = tempParent.y;
+							var endX = children[i].value.x;
+							var endY = children[i].value.y;
+							result.push({
+								level : tempParent.level,
+								from : {x: startX, y: startY, id: tempParent.id},
+								to : {x: endX, y: endY, id: children[i].value.id}
+							});
+						}
+						connectDots(parent[j].children, result);
+					}
+				}else{				
+					return;
+				}
+			}
+
+			function drawDots() {
+				for(j = 0; j < dots.length; j++){
+					var dot = dots[j];
+					for(i = 0; i < dot.nb; i++){
+					  	var newdot = dot.array[i];
+					  	if(newdot.toBlast)
+					  		newdot.blast();
+					  	else if(newdot.toFade)
+					  		newdot.fade();
+					  	else
+					  		newdot.draw();
+					}
+				}
+			}
+
+			function getDistance(p1, p2){
+				return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+			}
+
+			function getRandomBetween(min, max){
+				return Math.floor(Math.random()*(max-min+1)+min);
+			}
+
+			function getTree(refPtArr, lvl, nodeArr){
+				var pointArr = dots[lvl-1], nearest;
+				if(typeof pointArr !== "undefined"){
+					pointArr = pointArr.array;
+
+					for(var h = 0; h < nodeArr.length; h++){
+						currNode = nodeArr[h];
+						for(var j = 0; j < refPtArr.length; j++){	
+							var refPt = refPtArr[j];
+							for(var i = 0; i < pointArr.length; i++){
+								var currDot = pointArr[i];
+								currDot.dist = getDistance(refPt, currDot);						
+							}
+						}
+						if(lvl == 1 || lvl == 2){
+							nearest = pointArr.filter(function(x){ return !x.inserted}).getClosestN(1);
+						}else if(lvl == 3 || lvl == 4){
+							nearest = pointArr.filter(function(x){ return !x.inserted}).getClosestN(getRandomBetween(2, 5));
+						}
+						for(var i = 0; i < nearest.length; i++){
+							nearest[i].inserted = true;
+							nearest[i].id = "l_" + getRandomBetween(0, 2500000);
+							currNode.addChild(new Node(nearest[i]))
+						}						
+						getTree(nearest, lvl + 1, currNode.getChildren())
+					}
+				}else{
+					//console.log("Tree Made")
+					return;
+				}
+			}
+
+			function drawLines(animObj) {
+				var linesArray = animObj.lines.filter(function(x){ return x.level < animObj.animlevel})
+				,retainArr = animObj.retainArr
+				,blastOp = animObj.blastOp
+				;
+				for(var i = 0; i < linesArray.length; i++){
+					ctx.beginPath();		
+					ctx.lineWidth = .3;
+					if(retainArr.filter(function(x){return x.id == linesArray[i].to.id;}).length > 0){
+						ctx.lineWidth = 1.3 
+						ctx.strokeStyle = "rgba(255, 255, 255, "+ blastOp.value +")";
+					}else{
+						//ctx.strokeStyle = getStrokeStyle(linesArray[i].level);
+						ctx.strokeStyle = "rgba(255, 255, 255, " + animObj.opArr[linesArray[i].level].value + ")"//getStrokeStyle(linesArray[i].level);
+					}
+				    ctx.moveTo(linesArray[i].from.x, linesArray[i].from.y);
+				    ctx.lineTo(linesArray[i].to.x, linesArray[i].to.y);
+				    ctx.stroke();
+				}	
+			}
+
+			function animateLines(linesArray, amount, retainArr, opArr) {
+				for(var i = 0; i < linesArray.length; i++){
+					var	point = linesArray[i];
+					var startX = point.from.x;
+					var startY = point.from.y;
+					var endX = point.to.x;
+					var endY = point.to.y;
+					ctx.lineWidth = .3;
+					ctx.beginPath();							
+					if(retainArr.filter(function(x){return x.id == linesArray[i].to.id;}).length > 0){
+						ctx.lineWidth = 1.3;
+						ctx.strokeStyle = "rgba(255, 255, 255, 1)";
+					}else{
+						ctx.strokeStyle = "rgba(255, 255, 255, " + opArr[linesArray[i].level].value + ")"
+					}
+				    ctx.moveTo(startX, startY);
+				    ctx.lineTo(startX + (endX - startX) * amount.value, startY + (endY - startY) * amount.value);
+				    ctx.stroke();
+				}	
+			}	
+
+			function getBlastDot(animObj){
+				var node = animObj.tree;
+				while(node.children.length > 0){
+					node = node.children[node.children.length - 1];
+					animObj.retainArr.push(node.value);
+				}
+			}
+			
+			function resetPoints(parent){
+				if(parent.length > 0){					
+					for(var j = 0; j < parent.length; j++){						
+						parent[j].value.inserted = false;							
+						children = parent[j].getChildren(); 
+						for(var i = 0; i < children.length; i++){
+							children[i].value.inserted = false;							
+						}
+						resetPoints(parent[j].children);
+					}
+				}else{				
+					return;
+				}
+			}
+			
+			function isMobile(){
+				if(    navigator.userAgent.match(/Android/i)
+	                || navigator.userAgent.match(/webOS/i)
+	                || navigator.userAgent.match(/iPhone/i)
+	                || navigator.userAgent.match(/iPod/i)
+	                || navigator.userAgent.match(/BlackBerry/i)
+	                || navigator.userAgent.match(/Windows Phone/i)
+	                || screen.width <= 768
+	                ){
+	                return true;
+	            }
+	            else {
+	                return false;
+	            }
+			}
+
+			function findNearest(refPt){				
+				//TweenMax.fromTo(fadeOp, 2, {value:1},{value:0});				
+				var animObj = {
+					id: "r" + getRandomBetween(0, 2500000),
+					amount: {value:1},
+					blastOp: {value:1},
+					animlevel: 1,
+					tl: new TimelineMax(),
+					lines: [],
+					retainArr: [],
+					opArr: [
+						{ value:1 }, 
+						{ value:0.85 }, 
+						{ value:0.7 }, 
+						{ value:0.6 }
+					]
+				}
+				var root = new Node(refPt);
+				var dur = {app:2, dis:1, tot:2/dots.length};
+				if(isMobile()){
+					dur.app/=3;
+					dur.dis/=3;
+					dur.tot/=3;
+				}
+				getTree([refPt], 1, [root]);
+		    	animObj.tree = root;	
+				getBlastDot(animObj);				
+				animObj.tl.fromTo(animObj.amount, dur.tot, {
+					value:0
+				},{
+					value:1,
+					onStart:function(){
+						animObj.retainArr[animObj.animlevel - 1].toBlast = true;					
+					},
+					onComplete:function(){
+						TweenMax.to(animObj.opArr[animObj.animlevel - 1], dur.dis, {value:0});
+				
+						if(animObj.animlevel == dots.length){
+							animObj.retainArr.filter(function(x){ x.toBlast = false; x.toFade = true; x.fadeObj = {value : 1}; return x });					
+							
+							TweenMax.fromTo(animObj.blastOp, dur.app, {value:1}, {
+								value:0,
+								onStart:function(){
+								},
+								onComplete: function(){
+									resetPoints(animObj.tree.children);
+									animArr = animArr.filter(function(x){
+										return x.id != animObj.id;
+									});
+									delete animObj;
+									if(isMobile()){	
+										setTimeout(function(){
+											findNearest({
+												x: getRandomBetween(0, window.innerWidth),
+												y: getRandomBetween(0, window.innerHeight)
+											});
+										}, 1000)
+									}
+								}	
+							})
+						}else{
+							animObj.tl.restart();							
+							animObj.animlevel++;							
+						}
+					}
+				})
+				animArr.push(animObj);	
+			}
+
+			function animateDots() {
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				moveDots();
+				drawDots();
+				if(animArr.length > 0){
+					for(var i = 0; i < animArr.length; i++){						
+						var currRoot = animArr[i];
+						currRoot.lines = [];
+						connectDots(currRoot.tree.children, currRoot.lines);	
+						drawLines(currRoot);
+						animateLines(currRoot.lines.filter(function(x){ return x.level == currRoot.animlevel}), currRoot.amount, currRoot.retainArr, currRoot.opArr);
+					}
+				}
+				requestAnimationFrame(animateDots);	
+			}
+			
+			$('#canvas1').on('mousemove', function(e){
+				if(!animating/* && !isMobile()*/){
+					mousePosition.x = e.pageX;
+					mousePosition.y = e.pageY;
+					findNearest(mousePosition);
+					animating = true;
+					//console.log("animating")
+					setTimeout(function(){
+						animating = false;
+						//console.log("ready")
+					}, 150)
+				}
+			});
+			$('#canvas1').on('mouseenter', function(e){
+				//mouseover = true;
+			});
+
+			$('#canvas1').on('mouseleave', function(e){
+			});
+
+			// $(window).scroll(function(e) {
+			//   var scroll = $(window).scrollTop();
+			//   if(scroll > window.innerHeight/2){
+			//   	  TweenMax.to("#canvas1", 0.5, {opacity:0})
+			//   }else{
+			//   	  TweenMax.to("#canvas1", 0.5, {opacity:1})
+			//   }
+			// });
+			createDots();
+			animateDots();
+			if(isMobile()){	
+				//animating = true;
+				findNearest({
+					x: getRandomBetween(0, screen.width),
+					y: getRandomBetween(0, screen.height)
+				});
+			}
+		});
+	</script>
+</body>
+</html>
